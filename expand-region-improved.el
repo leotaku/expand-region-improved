@@ -1,0 +1,342 @@
+;;; expand-region-improved.el --- Improved expand-region commands -*- lexical-binding: t -*-
+
+;; Author: Leo Gaskin <leo.gaskin@brg-feldkirchen.at>
+;; Created: 26 March 2020
+;; Homepage: https://github.com/leotaku/expand-region-improved.el
+;; Keywords: expand-region, region
+;; Package-Version: 0.1.0
+;; Package-Requires: ((emacs "25.1") (expand-region "0.11.0"))
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; * *expand-region-improved* :README:
+
+;; ** Improved expansion
+
+;; This package provides an improvement over the sometimes
+;; unpredictable expansion algorithm used by the original
+;; expand-region.
+
+;; We reuse most of the generic and mode-local expansions, which
+;; provides feature-parity with upstream expand-region.
+
+;; We provide the following additional features:
+
+;; + Overlapping regions
+;; + Better string detection
+;; + Grouped expansions
+;; + Moving cursor does not interrupt expansion
+;; + Recursion protection
+
+;; There are some drawbacks as well:
+
+;; + Transient-mark-mode is required
+
+;; ** New expansions
+
+;; ** Easy customization
+
+;; * END
+
+(require 'expand-region)
+(require 'seq)
+
+;;; Code:
+
+;;;; Global variables
+
+(defconst eri/try-expand-list
+  '((er/mark-word
+     er/mark-symbol
+     er/mark-symbol-with-prefix
+     er/mark-next-accessor)
+    er/mark-method-call
+    (er/mark-inside-python-string
+     er/mark-outside-python-string)
+    (er/mark-inside-pairs
+     er/mark-outside-pairs)
+    er/mark-comment
+    er/mark-url
+    er/mark-email
+    eri/mark-line
+    eri/mark-block
+    mark-page))
+
+(defconst eri--direction t)
+(defconst eri--current-regions t)
+(defconst eri--past-regions nil)
+
+;;;; Improved expansions
+
+;;;###autoload
+(defun eri/expand-region (arg)
+  "Increase selected region by semantic units, improved.
+
+With prefix ARG expands the region that many times.
+If prefix argument is negative calls ‘eri/contract-region’."
+  (interactive "p")
+  (unless transient-mark-mode
+    (user-error "Expand-region-improved requires transient-mark-mode!"))
+  (eri--prepare-regions arg)
+  (if (> arg 0)
+      (dotimes (_ arg)
+        (eri--expand-region))
+    (dotimes (_ (* arg -1))
+      (eri--contract-region))))
+
+;;;###autoload
+(defun eri/contract-region (arg)
+  "Contract the selected region to its previous size, improved.
+
+With prefix ARG contracts that many times.
+If prefix argument is negative calls ‘eri/expand-region’."
+  (interactive "p")
+  (eri/expand-region (* arg -1)))
+
+(defun eri--reset-region ()
+  (setq eri--direction t)
+  (setq eri--current-regions t)
+  (setq eri--past-regions nil))
+
+(defun eri--prepare-regions (arg)
+  (when (listp eri--current-regions)
+    (if (> arg 0)
+        (progn
+          (when (not eri--direction)
+            (push (car eri--current-regions) eri--past-regions)
+            (setq eri--current-regions (cdr eri--current-regions)))
+          (setq eri--direction t))
+      (when eri--direction
+        (push (car eri--past-regions) eri--current-regions)
+        (setq eri--past-regions (cdr eri--past-regions)))
+      (setq eri--direction nil))))
+
+(defun eri--expand-region ()
+  (cond
+   ((eq t eri--current-regions)
+    (setq eri--current-regions (eri--get-all-regions))
+    (if (region-active-p)
+        (push (cons (point) (mark)) eri--past-regions)
+      (push (cons (point) (point)) eri--past-regions))
+    (eri--expand-region))
+   ((null eri--current-regions))
+   (t
+    (let* ((pair (car eri--current-regions))
+           (point (car-safe pair))
+           (mark (cdr-safe pair)))
+      (setq eri--current-regions (cdr eri--current-regions))
+      (push pair eri--past-regions)
+      (setf (point) point)
+      (setf (mark) mark)
+      (when (= point mark)
+        (eri--expand-region))))))
+
+(defun eri--contract-region ()
+  (if (null eri--past-regions)
+      (deactivate-mark)
+    (let* ((pair (car eri--past-regions))
+           (point (car-safe pair))
+           (mark (cdr-safe pair)))
+      (setq eri--past-regions (cdr eri--past-regions))
+      (push pair eri--current-regions)
+      (setf (point) point)
+      (setf (mark) mark)
+      (when (= point mark)
+        (deactivate-mark)))))
+
+(defun eri--get-all-regions ()
+  (cdr (seq-uniq
+        (seq-sort-by
+         (lambda (pair)
+           (- (cdr pair) (car pair)))
+         '<
+         (seq-mapcat 'eri--get-regions-for eri/try-expand-list)))))
+
+(defun eri--get-regions-for (exps)
+  (let ((exps (if (listp exps) exps (list exps)))
+        (old-point (point))
+        (old-mark (mark))
+        (old-active mark-active)
+        (result '())
+        (current))
+    (unless mark-active
+      (setf (mark) (point)))
+    (cl-block 'return
+      (dotimes (_ 200)
+        (dolist (exp exps)
+          (condition-case err
+              (funcall exp)
+            (error))
+          (setq current (cons (point) (mark)))
+          (if (equal current (car result))
+              (cl-return-from 'return result)
+            (when (<= (point) old-point (mark))
+              (push current result))))))
+    (prog1 result
+      (setf (point) old-point)
+      (setf (mark) old-mark)
+      (unless old-active
+        (deactivate-mark)))))
+
+;;;; Easy customization
+
+;;;###autoload
+(defun eri/add-mode-expansions (mode &optional additional removed)
+  (declare (indent 1))
+  (if (listp mode)
+      (dolist (mode mode)
+        (eri/add-mode-expansions mode additional removed))
+    (let ((hook (intern (concat (symbol-name mode) "-hook"))))
+      (add-hook
+       hook (lambda ()
+              (set (make-local-variable 'eri/try-expand-list)
+                   (append
+                    (seq-difference eri/try-expand-list removed)
+                    additional)))))))
+
+;;;###autoload
+(defmacro eri/define-pair (name char &optional test-function)
+  (let ((test-function (or test-function (lambda (_) t)))
+        (inside-name (intern (concat "eri/mark-inside-" (symbol-name name))))
+        (outside-name (intern (concat "eri/mark-outside-" (symbol-name name)))))
+    `(progn
+       (defun ,outside-name ()
+         (interactive)
+         (when (funcall ,test-function)
+           (search-backward ,char)
+           (set-mark (point))
+           (forward-char)
+           (search-forward ,char)
+           (exchange-point-and-mark)))
+       (defun ,inside-name ()
+         (interactive)
+         (when (funcall ,test-function)
+           (search-backward ,char)
+           (forward-char 2)
+           (set-mark (point))
+           (search-forward ,char)
+           (backward-char 2)
+           (exchange-point-and-mark))))))
+
+;;;; New expansions
+
+;;;###autoload
+(defun eri/mark-line ()
+  (interactive)
+  (setf (point) (point-at-eol))
+  (forward-char)
+  (set-mark (point))
+  (backward-char)
+  (setf (point) (point-at-bol)))
+
+;;;###autoload
+(defun eri/mark-block ()
+  (interactive)
+  (while (progn
+           (forward-line)
+           (not (or (and (= (point-at-eol) (point-at-bol))
+                         (setf (mark) (point-at-bol)))
+                    (and (= (point-at-eol) (point-max))
+                         (setf (mark) (point-at-eol)))))))
+  (while (progn
+           (forward-line -1)
+           (not (or (and (= (point-at-bol) (point-at-eol))
+                         (forward-line))
+                    (= (point-at-bol) (point-min))))))
+  (setf (point) (point-at-bol)))
+
+;;;; Shared setup code
+
+(add-hook 'deactivate-mark-hook 'eri--reset-region)
+
+(eri/add-mode-expansions '(lisp-mode emacs-lisp-mode)
+  '()
+  '(eri/mark-line eri/mark-block))
+
+(eri/add-mode-expansions 'LaTeX-mode
+  '(LaTeX-mark-section
+    er/mark-LaTeX-math
+    (er/mark-LaTeX-inside-environment
+     LaTeX-mark-environment)))
+
+(eri/add-mode-expansions 'org-mode
+  '(org-mark-subtree
+    '(er/mark-org-element
+      er/mark-org-element-parent)
+    er/mark-org-code-block
+    er/mark-sentence
+    er/mark-org-parent
+    er/mark-paragraph))
+
+(eri/add-mode-expansions 'clojure-mode
+  '(er/mark-clj-word
+    er/mark-clj-regexp-literal
+    er/mark-clj-set-literal
+    er/mark-clj-function-literal))
+
+(eri/add-mode-expansions 'css-mode
+  '(er/mark-css-declaration))
+
+(eri/add-mode-expansions 'erlang-mode
+  '(erlang-mark-function
+    erlang-mark-clause))
+
+(eri/add-mode-expansions 'feature-mode
+  '(er/mark-feature-scenario
+    er/mark-feature-step))
+
+(eri/add-mode-expansions '(sgml-mode rhtml-mode nxhtml-mode web-mode)
+  '(er/mark-html-attribute
+    (er/mark-inner-tag
+     er/mark-outer-tag)))
+
+(eri/add-mode-expansions 'nxml-mode
+  '(nxml-mark-paragraph
+    er/mark-nxml-tag
+    (er/mark-nxml-inside-element
+     er/mark-nxml-element
+     er/mark-nxml-containing-element)
+    (er/mark-nxml-attribute-inner-string
+     er/mark-nxml-attribute-string)
+    er/mark-html-attribute)
+  '(er/mark-method-call
+    er/mark-symbol-with-prefix
+    er/mark-symbol))
+
+(eri/add-mode-expansions '(js-mode js2-mode js3-mode)
+  '(er/mark-js-function
+    er/mark-js-object-property-value
+    er/mark-js-object-property
+    er/mark-js-if
+    (er/mark-js-inner-return
+     er/mark-js-outer-return)
+    er/mark-js-call))
+
+;; (eri/add-mode-expansions 'octave-mod)
+;; (eri/add-mode-expansions 'octave)
+;; (eri/add-mode-expansions 'python-mode)
+;; (eri/add-mode-expansions 'ruby-mode)
+;; (eri/add-mode-expansions 'cc-mode)
+;; (eri/add-mode-expansions 'text-mode)
+;; (eri/add-mode-expansions 'cperl-mode)
+;; (eri/add-mode-expansions 'sml-mode)
+;; (eri/add-mode-expansions 'enh-ruby-mode)
+
+(provide 'expand-region-improved)
+
+;;; expand-region-improved.el ends here
