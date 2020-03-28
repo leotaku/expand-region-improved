@@ -3,20 +3,20 @@ Note: this file is auto converted from expand-region-improved.el by [el2org](htt
 
 # Table of Contents
 
-1.  [**expand-region-improved**](#org46c5b46)
-    1.  [Better expansion](#orga8811df)
-    2.  [New expansions](#org4cd3dd7)
-    3.  [Easy customization](#org521a1e0)
+1.  [**expand-region-improved**](#org732000d)
+    1.  [Improved expansion](#org6b79317)
+    2.  [New expansions](#org310396d)
+    3.  [Easy customization](#org04ea859)
 
 
-<a id="org46c5b46"></a>
+<a id="org732000d"></a>
 
 # **expand-region-improved**
 
 
-<a id="orga8811df"></a>
+<a id="org6b79317"></a>
 
-## Better expansion
+## Improved expansion
 
 This package provides an improvement over the sometimes
 unpredictable expansion algorithm used by the original
@@ -36,14 +36,15 @@ We provide the following additional features:
 There are some drawbacks as well:
 
 -   Transient-mark-mode is required
+-   FIXME: Multiple-cursors are not yet supported
 
 
-<a id="org4cd3dd7"></a>
+<a id="org310396d"></a>
 
 ## New expansions
 
 
-<a id="org521a1e0"></a>
+<a id="org04ea859"></a>
 
 ## Easy customization
 

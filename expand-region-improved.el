@@ -46,6 +46,7 @@
 ;; There are some drawbacks as well:
 
 ;; + Transient-mark-mode is required
+;; + FIXME: Multiple-cursors are not yet supported
 
 ;; ** New expansions
 
