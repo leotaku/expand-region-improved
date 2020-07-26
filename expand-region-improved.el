@@ -223,6 +223,8 @@ If prefix argument is negative calls ‘eri/expand-region’."
 
 ;;;###autoload
 (defun eri/add-mode-expansions (mode &optional additional removed)
+  "Add the ADDITIONAL expansions to `eri/try-expand-list' in
+MODE, then remove the REMOVED expansions."
   (declare (indent 1))
   (if (listp mode)
       (dolist (mode mode)
@@ -237,6 +239,12 @@ If prefix argument is negative calls ‘eri/expand-region’."
 
 ;;;###autoload
 (defmacro eri/define-pair (name char &optional test-function)
+  "Define a pair of CHAR with NAME that can be marked.
+This macro defines two functions that can then be used to mark
+said object.
+
+When TEST-FUNCTION is a function, immediately unmark the object
+if the function returns nil after marking."
   (let ((test-function (or test-function (lambda (_) t)))
         (inside-name (intern (concat "eri/mark-inside-" (symbol-name name))))
         (outside-name (intern (concat "eri/mark-outside-" (symbol-name name)))))
@@ -263,6 +271,7 @@ If prefix argument is negative calls ‘eri/expand-region’."
 
 ;;;###autoload
 (defun eri/mark-line ()
+  "Marks one buffer line."
   (interactive)
   (setf (point) (point-at-eol))
   (forward-char)
@@ -272,6 +281,7 @@ If prefix argument is negative calls ‘eri/expand-region’."
 
 ;;;###autoload
 (defun eri/mark-block ()
+  "Marks one continuous block of text."
   (interactive)
   (while (progn
            (forward-line)
