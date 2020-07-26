@@ -59,6 +59,12 @@
 ;;;; Improved expansions
 
 ;;;###autoload
+(defun eri/maximize-region (_arg)
+  (interactive "p")
+  (let ((eri/try-expand-list '(mark-page)))
+    (eri--expand-region)))
+
+;;;###autoload
 (defun eri/expand-region (arg)
   "Increase selected region by semantic units, improved.
 
