@@ -24,35 +24,9 @@
 
 ;;; Commentary:
 
-;; * *expand-region-improved* :README:
-
-;; ** Improved expansion
-
-;; This package provides an improvement over the sometimes
+;; This package aims to provide an improvement over the sometimes
 ;; unpredictable expansion algorithm used by the original
-;; expand-region.
-
-;; We reuse most of the generic and mode-local expansions, which
-;; provides feature-parity with upstream expand-region.
-
-;; We provide the following additional features:
-
-;; + Overlapping regions
-;; + Better string detection
-;; + Grouped expansions
-;; + Moving cursor does not interrupt expansion
-;; + Recursion protection
-
-;; There are some drawbacks as well:
-
-;; + Transient-mark-mode is required
-;; + FIXME: Multiple-cursors are not yet supported
-
-;; ** New expansions
-
-;; ** Easy customization
-
-;; * END
+;; expand-region package.
 
 (require 'expand-region)
 (require 'seq)
