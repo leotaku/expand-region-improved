@@ -79,7 +79,7 @@
     mark-page))
 
 (defconst eri--direction t)
-(defconst eri--current-regions t)
+(defconst eri--future-regions :start)
 (defconst eri--past-regions nil)
 
 ;;;; Improved expansions
@@ -110,89 +110,114 @@ If prefix argument is negative calls ‘eri/expand-region’."
   (eri/expand-region (* arg -1)))
 
 (defun eri--reset-region ()
-  (setq eri--direction t)
-  (setq eri--current-regions t)
-  (setq eri--past-regions nil))
+  (unless (region-active-p)
+    (setq eri--direction t)
+    (setq eri--future-regions :start)
+    (setq eri--past-regions nil)))
+
+(defun eri--reset-for-mc (&rest list)
+  (setq eri--future-regions :start)
+  (setq eri--past-regions nil)
+  (prog1 list))
 
 (defun eri--prepare-regions (arg)
-  (when (listp eri--current-regions)
+  (when (listp eri--future-regions)
     (if (> arg 0)
         (progn
           (when (not eri--direction)
-            (push (car eri--current-regions) eri--past-regions)
-            (setq eri--current-regions (cdr eri--current-regions)))
+            (push (car eri--future-regions) eri--past-regions)
+            (setq eri--future-regions (cdr eri--future-regions)))
           (setq eri--direction t))
       (when eri--direction
-        (push (car eri--past-regions) eri--current-regions)
+        (push (car eri--past-regions) eri--future-regions)
         (setq eri--past-regions (cdr eri--past-regions)))
       (setq eri--direction nil))))
 
 (defun eri--expand-region ()
   (cond
-   ((eq t eri--current-regions)
-    (setq eri--current-regions (eri--get-all-regions))
+   ((eq eri--future-regions :start)
+    (setq eri--future-regions (eri--get-all-regions))
     (if (region-active-p)
         (push (cons (point) (mark)) eri--past-regions)
       (push (cons (point) (point)) eri--past-regions))
     (eri--expand-region))
-   ((null eri--current-regions))
-   (t
-    (let* ((pair (car eri--current-regions))
-           (point (car-safe pair))
-           (mark (cdr-safe pair)))
-      (setq eri--current-regions (cdr eri--current-regions))
+   (eri--future-regions
+    (let* ((pair (car eri--future-regions))
+           (this-point (car-safe pair))
+           (this-mark (cdr-safe pair)))
+      (setq eri--future-regions (cdr eri--future-regions))
       (push pair eri--past-regions)
-      (setf (point) point)
-      (setf (mark) mark)
-      (when (= point mark)
+      (setf (point) this-point)
+      (setf (mark) this-mark)
+      (when (= this-point this-mark)
         (eri--expand-region))))))
 
 (defun eri--contract-region ()
   (if (null eri--past-regions)
       (deactivate-mark)
     (let* ((pair (car eri--past-regions))
-           (point (car-safe pair))
-           (mark (cdr-safe pair)))
+           (this-point (car-safe pair))
+           (this-mark (cdr-safe pair)))
       (setq eri--past-regions (cdr eri--past-regions))
-      (push pair eri--current-regions)
-      (setf (point) point)
-      (setf (mark) mark)
-      (when (= point mark)
+      (push pair eri--future-regions)
+      (setf (point) this-point)
+      (setf (mark) this-mark)
+      (when (= this-point this-mark)
         (deactivate-mark)))))
 
 (defun eri--get-all-regions ()
-  (cdr (seq-uniq
-        (seq-sort-by
-         (lambda (pair)
-           (- (cdr pair) (car pair)))
-         '<
-         (seq-mapcat 'eri--get-regions-for eri/try-expand-list)))))
+  (let ((all (seq-uniq
+              (seq-sort-by
+               (lambda (pair)
+                 (- (cdr pair) (car pair)))
+               '<
+               (seq-mapcat
+                (lambda (exps)
+                  (append (eri--get-regions-for exps 100)
+                          (when (listp exps)
+                            (eri--get-regions-for (reverse exps) 1))))
+                eri/try-expand-list)))))
+    all))
 
-(defun eri--get-regions-for (exps)
-  (let ((exps (if (listp exps) exps (list exps)))
-        (old-point (point))
-        (old-mark (mark))
-        (old-active mark-active)
-        (result '())
-        (current))
-    (unless mark-active
-      (setf (mark) (point)))
-    (cl-block 'return
-      (dotimes (_ 200)
-        (dolist (exp exps)
-          (condition-case err
-              (funcall exp)
-            (error))
-          (setq current (cons (point) (mark)))
-          (if (equal current (car result))
-              (cl-return-from 'return result)
-            (when (<= (point) old-point (mark))
-              (push current result))))))
-    (prog1 result
-      (setf (point) old-point)
-      (setf (mark) old-mark)
+;; FIXME: In-region detection is pretty stupid
+
+(defun eri--get-regions-for (exps repeat)
+  (save-excursion
+    (let ((exps (if (listp exps) exps (list exps)))
+          (old-point (point))
+          (old-mark (mark))
+          (old-active mark-active)
+          result current useless-iterations)
+      ;; Fix mark
       (unless old-active
-        (deactivate-mark)))))
+        (setf (mark) old-point)
+        (setq old-mark old-point))
+      ;; Run all expansions
+      (cl-block 'return
+        (dotimes (_ repeat)
+          (dolist (exp exps)
+            (condition-case err
+                (funcall exp)
+              (error))
+            ;; Protect against useless iterations
+            (if (equal current (cons (point) (mark)))
+                (setq useless-iterations (1+ useless-iterations))
+              (setq useless-iterations 0))
+            (when (> useless-iterations 1)
+              (cl-return-from 'return result))
+            ;; Update region
+            (setq current (cons (point) (mark)))
+            (when (and (/= (point) (mark))
+                       (<= (point) old-point (mark))
+                       (<= (point) old-mark (mark)))
+              (unless (and mark-active (= old-point (mark)))
+                (push current result))))))
+      ;; Reset point and mark
+      (prog1 result
+        (setf (point) old-point)
+        (setf (mark) old-mark)
+        (unless old-active
+          (deactivate-mark))))))
 
 ;;;; Easy customization
 
@@ -261,9 +286,34 @@ If prefix argument is negative calls ‘eri/expand-region’."
                     (= (point-at-bol) (point-min))))))
   (setf (point) (point-at-bol)))
 
-;;;; Shared setup code
+(defun eri/mark-outside-quotes ()
+  "Mark the current string, including the quotation marks."
+  (interactive)
+  (if (er--point-inside-string-p)
+      (progn
+        (er--move-point-forward-out-of-string)
+        (setf (mark) (point))
+        (backward-char)
+        (er--move-point-backward-out-of-string))
+    (forward-char)
+    (if (not (er--point-inside-string-p))
+        (backward-char)
+      (er--move-point-forward-out-of-string)
+      (setf (mark) (point))
+      (backward-char)
+      (er--move-point-backward-out-of-string))))
 
-(add-hook 'deactivate-mark-hook 'eri--reset-region)
+;;;; Setup code
+
+(setq eri--variables '(eri--direction eri--future-regions eri--past-regions))
+(dolist (var eri--variables)
+  (make-variable-buffer-local var))
+(add-hook 'post-command-hook 'eri--reset-region)
+
+(with-eval-after-load 'multiple-cursors
+  (dolist (var eri--variables)
+    (add-to-list 'mc/cursor-specific-vars var))
+  (advice-add 'mc/mark-more-like-this :before 'eri--reset-for-mc))
 
 (eri/add-mode-expansions '(lisp-mode emacs-lisp-mode)
   '()
