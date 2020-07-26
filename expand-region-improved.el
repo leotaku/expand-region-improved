@@ -315,7 +315,6 @@ if the function returns nil after marking."
       er/mark-org-element-parent)
     er/mark-org-code-block
     er/mark-sentence
-    er/mark-org-parent
     er/mark-paragraph))
 
 (eri/add-mode-expansions 'clojure-mode
