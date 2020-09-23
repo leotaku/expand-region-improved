@@ -35,14 +35,18 @@
 
 ;;;; Global variables
 
-(defconst eri/try-expand-list
+(defgroup expand-region-improved nil
+  "Increase selected region by semantic units."
+  :group 'tools)
+
+(defcustom eri/try-expand-list
   '((er/mark-word
      er/mark-symbol
      er/mark-symbol-with-prefix
      er/mark-next-accessor)
     er/mark-method-call
-    (er/mark-inside-python-string
-     er/mark-outside-python-string)
+    (er/mark-inside-quotes
+     eri/mark-outside-quotes)
     (er/mark-inside-pairs
      er/mark-outside-pairs)
     er/mark-comment
