@@ -5,14 +5,16 @@
 This package aims to provide an improvement over the sometimes unpredictable expansion algorithm used by the original expand-region package.
 
 We reuse most of the generic and mode-local expansions, which provides feature-parity with upstream expand-region.
+Like upstream expand-region, expand-region-improved is fully compatible with multiple-cursors.
 
 Additionaly, we provide the following new features:
 
 + Support for overlapping regions
 + Grouped expansions in `eri-try-expand-list`
 + Moving cursor does not interrupt expansion
-+ (Limited) recursion protection for expansion functions
 + Better default string detection
++ (LIMITED) Recursion protection for expansion functions
++ (TO BE DOCUMENTED) Helpers for creating custom expansion functions
 
 ## New expansions
 
