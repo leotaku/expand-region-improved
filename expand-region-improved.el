@@ -54,7 +54,11 @@
     er/mark-email
     eri/mark-line
     eri/mark-block
-    mark-page))
+    mark-page)
+  "A list of functions or function groups that are tried when expanding."
+  :type '(repeat (choice
+                  (symbol :tag "Function" unknown)
+                  (repeat :tag "Group" (symbol :tag "Function" unknown)))))
 
 (defconst eri--direction t)
 (defconst eri--future-regions :start)
