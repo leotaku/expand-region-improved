@@ -1,5 +1,7 @@
 ;;; expand-region-improved.el --- Improved expand-region commands -*- lexical-binding: t -*-
 
+;; Copyright (C) 2020-2022 Leo Gaskin
+
 ;; Author: Leo Gaskin <leo.gaskin@le0.gs>
 ;; Created: 26 March 2020
 ;; Homepage: https://github.com/leotaku/expand-region-improved.el
