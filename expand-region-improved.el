@@ -350,10 +350,29 @@ if the function returns nil after marking."
   '(er/mark-feature-scenario
     er/mark-feature-step))
 
-(eri/add-mode-expansions '(sgml-mode rhtml-mode nxhtml-mode web-mode)
+(eri/add-mode-expansions '(sgml-mode rhtml-mode nxhtml-mode)
   '(er/mark-html-attribute
     (er/mark-inner-tag
      er/mark-outer-tag)))
+
+(defun eri/web-mode-element-parent ()
+  (interactive)
+  (web-mode-element-parent)
+  (web-mode-element-select))
+
+(defun eri/web-mode-element-parent-content ()
+  (interactive)
+  (web-mode-element-parent)
+  (web-mode-element-select)
+  (web-mode-element-content-select))
+
+(eri/add-mode-expansions '(web-mode)
+  '(web-mode-attribute-select
+    web-mode-tag-select
+    web-mode-block-select
+    web-mode-element-select
+    (eri/web-mode-element-parent
+     eri/web-mode-element-parent-content)))
 
 (eri/add-mode-expansions 'nxml-mode
   '(nxml-mark-paragraph
