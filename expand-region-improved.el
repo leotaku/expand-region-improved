@@ -82,7 +82,7 @@ With prefix ARG expands the region that many times.
 If prefix argument is negative calls ‘eri/contract-region’."
   (interactive "p")
   (unless transient-mark-mode
-    (user-error "Expand-region-improved requires transient-mark-mode!"))
+    (transient-mark-mode))
   (eri--prepare-regions arg)
   (if (> arg 0)
       (dotimes (_ arg)
