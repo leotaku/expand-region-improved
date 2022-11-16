@@ -396,8 +396,7 @@ if the function returns nil after marking."
      er/mark-js-outer-return)
     er/mark-js-call))
 
-;; (eri/add-mode-expansions 'octave-mod)
-;; (eri/add-mode-expansions 'octave)
+;; (eri/add-mode-expansions 'octave-mode)
 ;; (eri/add-mode-expansions 'python-mode)
 ;; (eri/add-mode-expansions 'ruby-mode)
 ;; (eri/add-mode-expansions 'cc-mode)
