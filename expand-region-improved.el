@@ -273,17 +273,15 @@ if the function returns nil after marking."
 (defun eri/mark-block ()
   "Marks one continuous block of text."
   (interactive)
-  (while (progn
-           (forward-line)
-           (not (or (and (= (point-at-eol) (point-at-bol))
-                         (setf (mark) (point-at-bol)))
-                    (and (= (point-at-eol) (point-max))
-                         (setf (mark) (point-at-eol)))))))
-  (while (progn
-           (forward-line -1)
-           (not (or (and (= (point-at-bol) (point-at-eol))
-                         (forward-line))
-                    (= (point-at-bol) (point-min))))))
+  (while (and (/= (point-at-eol) (point-at-bol))
+              (/= (point-at-eol) (point-max)))
+    (forward-line))
+  (setf (mark) (point-at-bol))
+  (forward-line -1)
+  (while (and (/= (point-at-bol) (point-at-eol))
+              (/= (point-at-bol) (point-min)))
+    (forward-line -1))
+  (forward-line)
   (setf (point) (point-at-bol)))
 
 (defun eri/mark-outside-quotes ()
