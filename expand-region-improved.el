@@ -137,8 +137,8 @@ If prefix argument is negative calls ‘eri/expand-region’."
            (this-mark (cdr-safe pair)))
       (setq eri--future-regions (cdr eri--future-regions))
       (push pair eri--past-regions)
-      (setf (point) this-point)
-      (setf (mark) this-mark)
+      (goto-char this-point)
+      (set-mark this-mark)
       (when (= this-point this-mark)
         (eri--expand-region))))))
 
@@ -150,8 +150,8 @@ If prefix argument is negative calls ‘eri/expand-region’."
            (this-mark (cdr-safe pair)))
       (setq eri--past-regions (cdr eri--past-regions))
       (push pair eri--future-regions)
-      (setf (point) this-point)
-      (setf (mark) this-mark)
+      (goto-char this-point)
+      (set-mark this-mark)
       (when (= this-point this-mark)
         (deactivate-mark)))))
 
@@ -180,7 +180,7 @@ If prefix argument is negative calls ‘eri/expand-region’."
           result current useless-iterations)
       ;; Fix mark
       (unless old-active
-        (setf (mark) old-point)
+        (set-mark old-point)
         (setq old-mark old-point))
       ;; Run all expansions
       (cl-block 'return
@@ -204,8 +204,8 @@ If prefix argument is negative calls ‘eri/expand-region’."
                 (push current result))))))
       ;; Reset point and mark
       (prog1 result
-        (setf (point) old-point)
-        (setf (mark) old-mark)
+        (goto-char old-point)
+        (set-mark old-mark)
         (unless old-active
           (deactivate-mark))))))
 
@@ -263,11 +263,11 @@ if the function returns nil after marking."
 (defun eri/mark-line ()
   "Marks one buffer line."
   (interactive)
-  (setf (point) (point-at-eol))
+  (goto-char (point-at-eol))
   (forward-char)
   (set-mark (point))
   (backward-char)
-  (setf (point) (point-at-bol)))
+  (goto-char (point-at-bol)))
 
 ;;;###autoload
 (defun eri/mark-block ()
@@ -276,13 +276,13 @@ if the function returns nil after marking."
   (while (and (/= (point-at-eol) (point-at-bol))
               (/= (point-at-eol) (point-max)))
     (forward-line))
-  (setf (mark) (point-at-bol))
+  (set-mark (point-at-bol))
   (forward-line -1)
   (while (and (/= (point-at-bol) (point-at-eol))
               (/= (point-at-bol) (point-min)))
     (forward-line -1))
   (forward-line)
-  (setf (point) (point-at-bol)))
+  (goto-char (point-at-bol)))
 
 (defun eri/mark-outside-quotes ()
   "Mark the current string, including the quotation marks."
@@ -290,14 +290,14 @@ if the function returns nil after marking."
   (if (er--point-inside-string-p)
       (progn
         (er--move-point-forward-out-of-string)
-        (setf (mark) (point))
+        (set-mark (point))
         (backward-char)
         (er--move-point-backward-out-of-string))
     (forward-char)
     (if (not (er--point-inside-string-p))
         (backward-char)
       (er--move-point-forward-out-of-string)
-      (setf (mark) (point))
+      (set-mark (point))
       (backward-char)
       (er--move-point-backward-out-of-string))))
 
