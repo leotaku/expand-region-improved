@@ -5,7 +5,7 @@
 ;; Author: Leo Gaskin <leo.gaskin@le0.gs>
 ;; Created: 26 March 2020
 ;; Homepage: https://github.com/leotaku/expand-region-improved.el
-;; Keywords: expand-region, region
+;; Keywords: convenience expand-region mark region
 ;; Package-Version: 0.1.0
 ;; Package-Requires: ((emacs "25.1") (expand-region "0.11.0"))
 
