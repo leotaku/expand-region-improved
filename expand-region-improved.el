@@ -186,7 +186,7 @@ If prefix argument is negative calls ‘eri/expand-region’."
       (cl-block 'return
         (dotimes (_ repeat)
           (dolist (exp exps)
-            (condition-case err
+            (condition-case nil
                 (funcall exp)
               (error))
             ;; Protect against useless iterations
