@@ -263,26 +263,26 @@ if the function returns nil after marking."
 (defun eri/mark-line ()
   "Marks one buffer line."
   (interactive)
-  (goto-char (point-at-eol))
+  (goto-char (line-end-position))
   (forward-char)
   (set-mark (point))
   (backward-char)
-  (goto-char (point-at-bol)))
+  (goto-char (line-beginning-position)))
 
 ;;;###autoload
 (defun eri/mark-block ()
   "Marks one continuous block of text."
   (interactive)
-  (while (and (/= (point-at-eol) (point-at-bol))
-              (/= (point-at-eol) (point-max)))
+  (while (and (/= (line-end-position) (line-beginning-position))
+              (/= (line-end-position) (point-max)))
     (forward-line))
-  (set-mark (point-at-bol))
+  (set-mark (line-beginning-position))
   (forward-line -1)
-  (while (and (/= (point-at-bol) (point-at-eol))
-              (/= (point-at-bol) (point-min)))
+  (while (and (/= (line-beginning-position) (line-end-position))
+              (/= (line-beginning-position) (point-min)))
     (forward-line -1))
   (forward-line)
-  (goto-char (point-at-bol)))
+  (goto-char (line-beginning-position)))
 
 (defun eri/mark-outside-quotes ()
   "Mark the current string, including the quotation marks."
