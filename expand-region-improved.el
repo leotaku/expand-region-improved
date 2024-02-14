@@ -303,7 +303,7 @@ if the function returns nil after marking."
 
 ;;;; Setup code
 
-(setq eri--variables '(eri--direction eri--future-regions eri--past-regions))
+(defvar eri--variables '(eri--direction eri--future-regions eri--past-regions))
 (dolist (var eri--variables)
   (make-variable-buffer-local var))
 (add-hook 'post-command-hook 'eri--reset-region)
